@@ -13,7 +13,7 @@
     "oauth-1.0a": "2.2.6"
   },
   "devDependencies": {
-    "wrangler": "4.14.1",
+    "wrangler": "4.14.2",
     "typescript": "5.8.3"
   }
 }
