@@ -13,7 +13,7 @@ app.get('/health-check', (c) => {
 app.get('/run-scheduled', async (c) => {
   console.log('Manually triggering scheduled handler...')
   try {
-    await scheduledHandler(null, c.env as any, null)
+    await scheduledHandler(null, c.env as any, c.executionCtx)
     return c.text('Scheduled handler triggered successfully!')
   } catch (error: any) {
     console.error('Error triggering scheduled handler:', error);
