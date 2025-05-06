@@ -3,6 +3,7 @@ import { Client } from '@notionhq/client'
 import { BlueskyPoster } from './sns/bluesky'
 import { Article, SnsPoster } from './sns/interface'
 import { TwitterPoster } from './sns/twitter'
+import { iteratePaginatedAPI } from '@notionhq/client'
 
 const app = new Hono()
 
@@ -76,19 +77,14 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
   try {
     console.log('Searching for unposted articles in Notion database: ' + notionDatabaseId)
 
-    const queryDatabase = notion.databases.query;
-    const response = await queryDatabase.call(notion, {
+    const articlesToPost: Article[] = []
+    for await (const page of iteratePaginatedAPI(notion.databases.query, {
       database_id: notionDatabaseId,
       filter: {
         property: 'Posted',
         checkbox: { equals: false },
       },
-    });
-
-    console.log(`Found ${response.results.length} unposted articles.`)
-
-    const articlesToPost: Article[] = []
-    for (const page of response.results) {
+    })) {
       const titleProperty = (page as any).properties.Title
       const urlProperty = (page as any).properties.URL
       const pageId = page.id
