@@ -154,5 +154,7 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
 
 export default {
   fetch: app.fetch,
-  scheduled: scheduledHandler,
+  scheduled: async (event: any, env: any, ctx: any) => {
+    ctx.waitUntil(scheduledHandler(event, env, ctx));
+  },
 }; 
