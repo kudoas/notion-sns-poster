@@ -8,7 +8,9 @@
   "dependencies": {
     "@atproto/api": "0.15.5",
     "@notionhq/client": "2.3.0",
-    "hono": "4.7.8"
+    "crypto-js": "4.2.0",
+    "hono": "4.7.8",
+    "oauth-1.0a": "2.2.6"
   },
   "devDependencies": {
     "wrangler": "4.14.1",

@@ -1,6 +1,6 @@
 name = "notion-sns-poster"
 main = "src/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-23"
 
 [triggers]
 crons = ["* * * * *"]

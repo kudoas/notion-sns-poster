@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { Client } from '@notionhq/client'
 import { BlueskyPoster } from './sns/bluesky'
-import { Article } from './sns/interface'
+import { Article, SnsPoster } from './sns/interface'
+import { TwitterPoster } from './sns/twitter'
 
 const app = new Hono()
 
@@ -25,34 +26,65 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
 
   const notionApiKey = env.NOTION_API_KEY as string
   const notionDatabaseId = env.NOTION_DATABASE_ID as string
+  if (!notionApiKey || !notionDatabaseId) {
+    console.error('No environment variables set (Notion).');
+    return;
+  }
+
   const blueskyIdentifier = env.BLUESKY_IDENTIFIER as string
   const blueskyPassword = env.BLUESKY_PASSWORD as string
+  const blueskyService = env.BLUESKY_SERVICE as string | undefined
 
-  if (!notionApiKey || !notionDatabaseId || !blueskyIdentifier || !blueskyPassword) {
-    console.error('Need to set environment variables.')
-    throw new Error('Need to set environment variables.');
+  const twitterAppKey = env.TWITTER_CONSUMER_KEY as string
+  const twitterAppSecret = env.TWITTER_CONSUMER_SECRET as string
+  const twitterAccessToken = env.TWITTER_ACCESS_TOKEN as string
+  const twitterAccessSecret = env.TWITTER_ACCESS_SECRET as string
+
+  const hasBlueskyAuth = blueskyIdentifier && blueskyPassword;
+  const hasTwitterAuth = twitterAppKey && twitterAppSecret && twitterAccessToken && twitterAccessSecret;
+
+  if (!hasBlueskyAuth && !hasTwitterAuth) {
+    console.error('No Bluesky or Twitter authentication credentials set.');
+    return;
   }
 
   const notion = new Client({ auth: notionApiKey })
-  const blueskyPoster = new BlueskyPoster()
+  const posters: SnsPoster[] = [];
+
+  if (hasBlueskyAuth) {
+    const blueskyPoster = new BlueskyPoster();
+    try {
+      await blueskyPoster.login({ identifier: blueskyIdentifier, password: blueskyPassword, service: blueskyService });
+      posters.push(blueskyPoster);
+    } catch (error) {
+      console.error('Failed to initialize Bluesky poster:', error);
+    }
+  }
+
+  if (hasTwitterAuth) {
+    const twitterPoster = new TwitterPoster(twitterAppKey, twitterAppSecret, twitterAccessToken, twitterAccessSecret);
+    posters.push(twitterPoster);
+  }
+
+  if (posters.length === 0) {
+    console.error('No valid SNS posters found.');
+    return;
+  }
+
+  console.log(`Using ${posters.length} SNS poster(s).`);
 
   try {
-    console.log('Logging in to Bluesky...')
-    await blueskyPoster.login({
-      identifier: blueskyIdentifier,
-      password: blueskyPassword,
-    })
-    console.log('Bluesky login successful.')
-    console.log(`Searching for unposted articles in Notion database: ${notionDatabaseId}`)
+    console.log('Searching for unposted articles in Notion database: ' + notionDatabaseId)
 
     const response = await notion.databases.query({
       database_id: notionDatabaseId,
       filter: {
-        // Need to change the property name to "Posted" in Notion.
         property: 'Posted',
         checkbox: { equals: false },
       },
     })
+
+    console.log(`Found ${response.results.length} unposted articles.`)
 
     const articlesToPost: Article[] = []
     for (const page of response.results) {
@@ -60,8 +92,15 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
       const urlProperty = (page as any).properties.URL
       const pageId = page.id
 
-      const title = titleProperty.title.map((t: any) => t.plain_text).join('');
-      const url = urlProperty.url
+      let title = '';
+      if (titleProperty?.type === 'title') {
+        title = titleProperty.title.map((t: any) => t.plain_text).join('');
+      } else if (titleProperty?.type === 'rich_text') {
+        title = titleProperty.rich_text.map((t: any) => t.plain_text).join('');
+      }
+
+      let url = urlProperty?.type === 'url' ? urlProperty.url : null;
+
       if (title && url) {
         articlesToPost.push({
           id: pageId,
@@ -69,34 +108,47 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
           url: url,
         })
       } else {
-        console.warn(`Skipping page ${pageId} due to missing or invalid title or URL property.`)
+        console.warn(`Skipping article ${pageId} due to missing Title or URL.`)
       }
     }
 
+    console.log(`Prepared ${articlesToPost.length} articles for posting.`)
+
     for (const article of articlesToPost) {
-      try {
-        console.log(`Attempting to post article: ${article.title}`)
-        await blueskyPoster.postArticle(article)
-        console.log(`Successfully posted article: ${article.title}`)
+      let postSuccessfulInAtLeastOneSns = false;
+      const postPromises = posters.map(poster => poster.postArticle(article).catch(e => {
+        console.error(`Error posting article ${article.id} to one SNS:`, e);
+        return { status: 'rejected', reason: e };
+      }));
 
-        await notion.pages.update({
-          page_id: article.id,
-          properties: {
-            Posted: { checkbox: true },
-          },
-        })
-        console.log(`Notion flag updated for article: ${article.title}`)
+      const results = await Promise.allSettled(postPromises);
 
-      } catch (postError: any) {
-        console.error(`Failed to process article ${article.title}: ${postError.message}`)
+      postSuccessfulInAtLeastOneSns = results.some(result => result.status === 'fulfilled');
+
+      if (postSuccessfulInAtLeastOneSns) {
+        console.log(`Article ${article.id} posted successfully to at least one SNS. Updating Notion flag.`)
+        try {
+          await notion.pages.update({
+            page_id: article.id,
+            properties: {
+              'Posted': {
+                checkbox: true,
+              },
+            },
+          });
+          console.log(`Notion flag updated for article ${article.id}.`);
+        } catch (updateError) {
+          console.error(`Failed to update Notion flag for article ${article.id}:`, updateError);
+        }
+      } else {
+        console.warn(`Article ${article.id} failed to post to all configured SNS. Skipping Notion flag update.`)
       }
     }
 
     console.log('Scheduler execution finished.')
 
   } catch (error: any) {
-    console.error(`An error occurred during scheduled task: ${error.message}`)
-    throw error;
+    console.error('Error in scheduled handler:', error.message);
   }
 }
 
