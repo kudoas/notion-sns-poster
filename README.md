@@ -2,27 +2,18 @@
 
 ## Overview
 
-This project is a system that periodically checks article bookmarks saved in a Notion database and automatically posts unposted articles to SNS (e,g., BlueSky).
+This project is a system that periodically checks article bookmarks saved in a Notion database and automatically posts unposted articles to SNS (e,g., BlueSky, Twitter).
 
 It is built using Cloudflare Workers, Hono, and Bun, and it distinguishes between posted and unposted articles by managing a specific property (e.g., a "Posted" flag) in the Notion database.
 
-## Architecture
+## Design
 
-This system is designed as a serverless application leveraging Cloudflare Workers and integrates with external services like Notion and various SNS platforms.
-
-Here's a high-level overview of the architecture:
-
-1.  **Notion Database:** Acts as the central data source for article bookmarks. It stores article information (title, URL) and a "Posted" flag to track publication status.
-2.  **Cloudflare Scheduler:** A time-based trigger configured to run the Cloudflare Worker at regular intervals (e.g., every minute).
-3.  **Cloudflare Worker:**
-    *   The core processing unit.
-    *   Triggered by the Cloudflare Scheduler.
-    *   Uses the `@notionhq/client` to query the Notion database for articles where the "Posted" flag is `false`.
-    *   Iterates through the retrieved unposted articles.
-    *   For each article, it uses an `SnsPoster` implementation (currently `BlueskyPoster` using `@atproto/api`) to post the article to the target SNS.
-    *   Upon successful posting, it updates the corresponding article's "Posted" flag to `true` in the Notion database using the Notion API.
-    *   Includes basic error handling to prevent reprocessing failed posts immediately.
-4.  **SNS APIs (e.g., Bluesky AT Protocol API):** External APIs used by the `SnsPoster` implementations to publish content to specific social networking services.
+1.  **Add Flag to Notion Database:** A flag property is added to the Notion database to indicate if an article has been posted. The default value is `false`.
+2.  **Cloudflare Scheduler:** Cloudflare Scheduler is configured to trigger the Worker periodically (e.g., every minute).
+3.  **Worker Execution:** The scheduled Worker uses the Notion API to search for and retrieve articles from the database where the "Posted" flag is `false`.
+4.  **Post to SNS:** Using the retrieved article data (title, URL, etc.), the article is posted using the configured SNS API. For future extensibility, the SNS integration is abstracted using an interface (`SnsPoster`). The current implementation supports Bluesky and X (Twitter).
+5.  **Update Flag:** If the post is successful, the "Posted" flag for the corresponding article in the Notion database is updated to `true` using the Notion API.
+6.  **Error Handling:** If an error occurs during posting or API calls, the flag for that article is not updated, allowing it to be retried during the next execution.
 
 ## Requirements
 
@@ -34,16 +25,7 @@ Here's a high-level overview of the architecture:
 - **Platform:** Cloudflare Workers
 - **Framework:** Hono
 - **Runtime & Package Manager:** Bun
-- **Libraries Used:** `@notionhq/client`, `@atproto/api`
-
-## Design
-
-1.  **Add Flag to Notion Database:** A flag property is added to the Notion database to indicate if an article has been posted. The default value is `false`.
-2.  **Cloudflare Scheduler:** Cloudflare Scheduler is configured to trigger the Worker periodically (e.g., every minute).
-3.  **Worker Execution:** The scheduled Worker uses the Notion API to search for and retrieve articles from the database where the "Posted" flag is `false`.
-4.  **Post to SNS:** Using the retrieved article data (title, URL, etc.), the article is posted using the configured SNS API. For future extensibility, the SNS integration is abstracted using an interface (`SnsPoster`). The current implementation supports Bluesky.
-5.  **Update Flag:** If the post is successful, the "Posted" flag for the corresponding article in the Notion database is updated to `true` using the Notion API.
-6.  **Error Handling:** If an error occurs during posting or API calls, the flag for that article is not updated, allowing it to be retried during the next execution.
+- **Libraries Used:** `@notionhq/client`, `@atproto/api`, `oauth-1.0a`
 
 ## Setup
 
@@ -77,9 +59,14 @@ cp .dev.vars.sample .dev.vars
 ```.dev.vars
 NOTION_API_KEY="Your Notion API Key"
 NOTION_DATABASE_ID="Your Notion Database ID"
+
 BLUESKY_IDENTIFIER="Your Bluesky Handle or Email"
 BLUESKY_PASSWORD="Your Bluesky Password"
-# BLUESKY_SERVICE="bsky.social or other service URL (optional)"
+
+TWITTER_CONSUMER_KEY="Your Twitter App Consumer Key"
+TWITTER_CONSUMER_SECRET="Your Twitter App Consumer Secret"
+TWITTER_ACCESS_TOKEN="Your Twitter App Access Token"
+TWITTER_ACCESS_SECRET="Your Twitter App Access Secret"
 ```
 
 #### Cloudflare Workers Environment
@@ -98,6 +85,18 @@ bun wrangler secret put BLUESKY_IDENTIFIER
 
 bun wrangler secret put BLUESKY_PASSWORD
 # Enter your Bluesky Password when prompted
+
+bun wrangler secret put TWITTER_CONSUMER_KEY
+# Enter your Twitter App Consumer Key when prompted
+
+bun wrangler secret put TWITTER_CONSUMER_SECRET
+# Enter your Twitter App Consumer Secret when prompted
+
+bun wrangler secret put TWITTER_ACCESS_TOKEN
+# Enter your Twitter App Access Token when prompted
+
+bun wrangler secret put TWITTER_ACCESS_SECRET
+# Enter your Twitter App Access Secret when prompted
 ```
 
 ### 4. Configure Notion Database
@@ -141,13 +140,3 @@ bun wrangler deploy
 ```
 
 After deployment, the Worker will be executed periodically according to the Cloudflare Scheduler configuration.
-
-## For Developers
-
-- The SNS integration is abstracted by the `SnsPoster` interface in `src/snsPoster.ts`. To add support for a new SNS, create a class that implements this interface and update `src/index.ts` to use the new poster based on configuration or other logic.
-- The current Bluesky implementation (`BlueskyPoster`) uses `@atproto/api`'s `RichText` class and External Embed (`app.bsky.embed.external`) to display OGP previews when posting articles.
-
-## License
-
-Please refer to the [LICENSE](LICENSE) file. (Note: Add license information as needed)
-
