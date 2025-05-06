@@ -76,13 +76,14 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
   try {
     console.log('Searching for unposted articles in Notion database: ' + notionDatabaseId)
 
-    const response = await notion.databases.query({
+    const queryDatabase = notion.databases.query;
+    const response = await queryDatabase.call(notion, {
       database_id: notionDatabaseId,
       filter: {
         property: 'Posted',
         checkbox: { equals: false },
       },
-    })
+    });
 
     console.log(`Found ${response.results.length} unposted articles.`)
 
