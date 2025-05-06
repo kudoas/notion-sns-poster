@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { Client } from '@notionhq/client'
-import { BlueskyPoster, Article } from './snsPoster'
+import { BlueskyPoster } from './sns/bluesky'
+import { Article } from './sns/interface'
 
 const app = new Hono()
 

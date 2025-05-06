@@ -1,14 +1,6 @@
 import { AtpAgent, RichText } from '@atproto/api'
-
-export type Article = {
-  id: string;
-  title: string;
-  url: string;
-}
-
-export interface SnsPoster {
-  postArticle(article: Article): Promise<void>;
-}
+import { Article, SnsPoster } from './interface'
+import { buildText } from './utils';
 
 export class BlueskyPoster implements SnsPoster {
   #agent: AtpAgent;
@@ -20,7 +12,7 @@ export class BlueskyPoster implements SnsPoster {
   async postArticle(article: Article): Promise<void> {
     console.log(`Posting article to Bluesky: ${article.title}`)
 
-    const text = `🔖 ${article.title} ${article.url}`;
+    const text = buildText(article);
     const rt = new RichText({ text });
     await rt.detectFacets(this.#agent);
 
