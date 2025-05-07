@@ -85,9 +85,12 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
         checkbox: { equals: false },
       },
     })) {
-      const titleProperty = (page as any).properties.Title
-      const urlProperty = (page as any).properties.URL
+      const { properties } = page as any
+      const titleProperty = properties.Title
+      const urlProperty = properties.URL
       const pageId = page.id
+
+      console.log('page', page)
 
       let title = '';
       if (titleProperty?.type === 'title') {
@@ -95,15 +98,10 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
       } else if (titleProperty?.type === 'rich_text') {
         title = titleProperty.rich_text.map((t: any) => t.plain_text).join('');
       }
-
       let url = urlProperty?.type === 'url' ? urlProperty.url : null;
 
       if (title && url) {
-        articlesToPost.push({
-          id: pageId,
-          title: title,
-          url: url,
-        })
+        articlesToPost.push({ id: pageId, title, url })
       } else {
         console.warn(`Skipping article ${pageId} due to missing Title or URL.`)
       }
