@@ -49,7 +49,8 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
     return;
   }
 
-  const notion = new Client({ auth: notionApiKey })
+  // ref. https://github.com/makenotion/notion-sdk-js/pull/506
+  const notion = new Client({ auth: notionApiKey, fetch: fetch.bind(globalThis) })
   const posters: SnsPoster[] = [];
 
   if (hasBlueskyAuth) {
