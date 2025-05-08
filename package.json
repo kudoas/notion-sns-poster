@@ -13,7 +13,9 @@
     "oauth-1.0a": "2.2.6"
   },
   "devDependencies": {
-    "wrangler": "4.14.4",
-    "typescript": "5.8.3"
+    "@cloudflare/workers-types": "^4.20240725.0",
+    "@types/crypto-js": "^4.2.2",
+    "typescript": "5.8.3",
+    "wrangler": "4.14.4"
   }
 }
