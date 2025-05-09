@@ -13,31 +13,26 @@ export class TwitterPoster implements SnsPoster {
   ) { }
 
   async postArticle(article: Article): Promise<void> {
-    console.log(`Posting article to X (Twitter) via oauth-1.0a: ${article.title}`);
-
     const text = buildText(article);
     const apiUrl = 'https://api.twitter.com/2/tweets';
     const tweetPayload = { text };
 
     try {
-      const resp = await this.fetchWithAuth(apiUrl, 'POST', tweetPayload);
+      const resp = await this.#fetchWithAuth(apiUrl, 'POST', tweetPayload);
       if (!resp.ok) {
         const body = await resp.text();
-        console.error('Twitter API response error body:', body);
-        throw new Error(`Failed to post article ${article.id} to Twitter: ${resp.status} ${resp.statusText}`);
+        throw new Error(`Failed to post article ${article.id} to Twitter: ${resp.status} ${resp.statusText} ${body}`);
       }
-
-      console.log('X (Twitter) post successful.');
-    } catch (error: any) {
-      console.error('Error posting article to X (Twitter):', error.message);
-      throw error;
+    } catch (e) {
+      console.error('Error posting article to X (Twitter):', e.message);
+      throw e
     }
   }
 
   /**
    * @see https://blog.lacolaco.net/2023/08/inside-laco-feed/
    */
-  async fetchWithAuth(url: string, method: string, body: object) {
+  async #fetchWithAuth(url: string, method: string, body: object) {
     const oauth = new OAuth({
       consumer: { key: this.consumerKey, secret: this.consumerSecret },
       signature_method: 'HMAC-SHA1',

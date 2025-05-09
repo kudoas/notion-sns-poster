@@ -23,8 +23,6 @@ app.get('/run-scheduled', async (c) => {
 })
 
 async function scheduledHandler(event: any, env: any, ctx: any) {
-  console.log('Scheduler triggered!')
-
   const notionApiKey = env.NOTION_API_KEY as string
   const notionDatabaseId = env.NOTION_DATABASE_ID as string
   if (!notionApiKey || !notionDatabaseId) {
@@ -43,7 +41,6 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
 
   const hasBlueskyAuth = blueskyIdentifier && blueskyPassword;
   const hasTwitterAuth = twitterAppKey && twitterAppSecret && twitterAccessToken && twitterAccessSecret;
-
   if (!hasBlueskyAuth && !hasTwitterAuth) {
     console.error('No Bluesky or Twitter authentication credentials set.');
     return;
@@ -53,31 +50,18 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
   const notion = new Client({ auth: notionApiKey, fetch: fetch.bind(globalThis) })
   const posters: SnsPoster[] = [];
 
-  if (hasBlueskyAuth) {
-    const blueskyPoster = new BlueskyPoster();
-    try {
-      await blueskyPoster.login({ identifier: blueskyIdentifier, password: blueskyPassword, service: blueskyService });
-      posters.push(blueskyPoster);
-    } catch (error) {
-      console.error('Failed to initialize Bluesky poster:', error);
-    }
-  }
+  const blueskyPoster = new BlueskyPoster(blueskyIdentifier, blueskyPassword, blueskyService);
+  posters.push(blueskyPoster);
 
-  if (hasTwitterAuth) {
-    const twitterPoster = new TwitterPoster(twitterAppKey, twitterAppSecret, twitterAccessToken, twitterAccessSecret);
-    posters.push(twitterPoster);
-  }
+  const twitterPoster = new TwitterPoster(twitterAppKey, twitterAppSecret, twitterAccessToken, twitterAccessSecret);
+  posters.push(twitterPoster);
 
   if (posters.length === 0) {
     console.error('No valid SNS posters found.');
     return;
   }
 
-  console.log(`Using ${posters.length} SNS poster(s).`);
-
   try {
-    console.log('Searching for unposted articles in Notion database: ' + notionDatabaseId)
-
     const articlesToPost: Article[] = []
     for await (const page of iteratePaginatedAPI(notion.databases.query, {
       database_id: notionDatabaseId,
@@ -90,8 +74,6 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
       const titleProperty = properties.Title
       const urlProperty = properties.URL
       const pageId = page.id
-
-      console.log('page', page)
 
       let title = '';
       if (titleProperty?.type === 'title') {
@@ -108,8 +90,6 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
       }
     }
 
-    console.log(`Prepared ${articlesToPost.length} articles for posting.`)
-
     for (const article of articlesToPost) {
       let postSuccessfulInAtLeastOneSns = false;
       const postPromises = posters.map(poster => poster.postArticle(article).catch(e => {
@@ -120,9 +100,7 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
       const results = await Promise.allSettled(postPromises);
 
       postSuccessfulInAtLeastOneSns = results.some(result => result.status === 'fulfilled');
-
       if (postSuccessfulInAtLeastOneSns) {
-        console.log(`Article ${article.id} posted successfully to at least one SNS. Updating Notion flag.`)
         try {
           await notion.pages.update({
             page_id: article.id,
@@ -132,7 +110,6 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
               },
             },
           });
-          console.log(`Notion flag updated for article ${article.id}.`);
         } catch (updateError) {
           console.error(`Failed to update Notion flag for article ${article.id}:`, updateError);
         }
@@ -140,9 +117,6 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
         console.warn(`Article ${article.id} failed to post to all configured SNS. Skipping Notion flag update.`)
       }
     }
-
-    console.log('Scheduler execution finished.')
-
   } catch (error: any) {
     console.error('Error in scheduled handler:', error.message);
   }
