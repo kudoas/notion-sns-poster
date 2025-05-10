@@ -11,6 +11,24 @@ app.get('/health-check', (c) => {
   return c.text('OK')
 })
 
+app.post('/notion-webhook', async (c) => {
+  try {
+    const body = await c.req.json()
+    if (body.verification_token) {
+      console.log('Received verification_token:', body.verification_token)
+      // TODO: 将来的にはこのトークンを安全に保存し、ペイロード検証に使用します。
+      // https://developers.notion.com/reference/webhooks#step-3-validating-event-payloads-recommended
+      return c.json({ message: 'Verification token received. Please check your server logs.' })
+    } else {
+      console.warn('Verification token not found in request body:', body)
+      return c.json({ error: 'Verification token not found' }, 400)
+    }
+  } catch (error) {
+    console.error('Error handling Notion webhook:', error)
+    return c.json({ error: 'Failed to process webhook' }, 500)
+  }
+})
+
 app.get('/run-scheduled', async (c) => {
   console.log('Manually triggering scheduled handler...')
   try {

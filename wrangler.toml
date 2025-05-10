@@ -2,12 +2,12 @@ name = "notion-sns-poster"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
-[triggers]
-crons = ["* * * * *"]
+# [triggers]
+# crons = ["* * * * *"]
 
 [observability]
 enabled = true
-head_sampling_rate = 0.1
+head_sampling_rate = 1
 
 [vars]
 SKIP_HOURS = "2,3,4,5"
