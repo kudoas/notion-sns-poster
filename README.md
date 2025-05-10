@@ -9,8 +9,8 @@ It is built using Cloudflare Workers, Hono, and Bun, and it distinguishes betwee
 ## Design
 
 1.  **Add Flag to Notion Database:** A flag property is added to the Notion database to indicate if an article has been posted. The default value is `false`.
-2.  **Cloudflare Scheduler:** Cloudflare Scheduler is configured to trigger the Worker periodically (e.g., every minute).
-3.  **Worker Execution:** The scheduled Worker uses the Notion API to search for and retrieve articles from the database where the "Posted" flag is `false`.
+2.  **Notion Webhook:** Notion Webhook is configured to send a POST request to the Worker's endpoint when a new page (article) is added to the database.
+3.  **Worker Execution:** The Worker, triggered by the Notion Webhook, uses the Notion API to retrieve the newly added article's data from the database. It checks if the "Posted" flag is `false`.
 4.  **Post to SNS:** Using the retrieved article data (title, URL, etc.), the article is posted using the configured SNS API. For future extensibility, the SNS integration is abstracted using an interface (`SnsPoster`). The current implementation supports Bluesky and X (Twitter).
 5.  **Update Flag:** If the post is successful, the "Posted" flag for the corresponding article in the Notion database is updated to `true` using the Notion API.
 6.  **Error Handling:** If an error occurs during posting or API calls, the flag for that article is not updated, allowing it to be retried during the next execution.
@@ -109,27 +109,34 @@ Ensure your target Notion database for automatic posting has the following prope
 
 Please check and modify the Notion property names in the Notion database query section of the `src/index.ts` file according to your database setup.
 
-### 5. Configure Cloudflare Scheduler
+### 5. Configure Notion Webhook 
 
-In the Cloudflare dashboard, configure a Scheduler trigger for the deployed Worker. Specify the execution interval (e.g., every minute).
+To trigger the Worker when a new article is added to your Notion database, you need to configure a Notion Webhook.
+
+1.  **Get Worker URL:** After deploying your Worker to Cloudflare, you will get a URL for your Worker. This will be the endpoint for the Notion Webhook.
+2.  **Create a Notion Integration:** If you haven't already, create a Notion integration and get the internal integration token (this is your `NOTION_API_KEY`).
+3.  **Share Database with Integration:** Share your Notion database with the integration you created.
+4.  **Set up Webhook in Notion (Manual or via API):**
+    *   Currently, Notion does not provide a direct UI to set up webhooks for database changes. You might need to use a third-party service or a custom script to listen for Notion events (e.g., via the Notion API's audit log or by periodically checking for new pages if direct webhooks are not feasible for your specific Notion setup or plan) and then trigger your Cloudflare Worker endpoint.
+    *   Alternatively, if Notion introduces database webhooks directly, configure it to send a POST request to your Worker URL when a page is added. The Worker expects the page ID in the request body (this might require a specific setup or a small intermediary service depending on Notion's Webhook capabilities).
+
+    **Note:** The specifics of Notion Webhook setup can vary. Please refer to the [official Notion API documentation](https://developers.notion.com/docs/webhooks) for the latest information and capabilities. The current project structure assumes that the Worker's `/run-scheduled` endpoint (or a new dedicated endpoint) will be called with the necessary information (e.g., page ID) when a new article is added. You might need to adjust `src/index.ts` to correctly handle the incoming Webhook payload from Notion.
 
 ## How to Run
 
 ### Local Development
 
-You can start a local development server and manually trigger the `scheduled` handler for testing.
+You can start a local development server. Since the primary trigger is now a Notion Webhook, directly testing the full flow locally requires a way to simulate the Webhook or trigger the relevant Worker function manually.
 
 ```bash
 bun wrangler dev
 ```
 
-Once the local server is running, access the following URL via your browser or curl:
+To manually simulate an event (e.g., a new article added), you might need to send a POST request to your local Worker's endpoint (e.g., `http://127.0.0.1:8787/your-webhook-endpoint`) with a payload similar to what Notion Webhook would send. The exact endpoint and payload will depend on how you've configured your Worker to receive Webhook requests.
 
-```bash
-curl http://127.0.0.1:8787/run-scheduled
-```
+Alternatively, you can modify the code to have a manual trigger endpoint for development purposes, similar to the previous `run-scheduled` if that helps in testing the core logic.
 
-Logs regarding interactions with the Notion and Bluesky APIs will be printed to the terminal.
+Logs regarding interactions with the Notion and SNS APIs will be printed to the terminal.
 
 ### Deploy to Cloudflare Workers
 
@@ -139,4 +146,4 @@ After configuring environment variables as Secrets in Cloudflare Workers, run th
 bun wrangler deploy
 ```
 
-After deployment, the Worker will be executed periodically according to the Cloudflare Scheduler configuration.
+After deployment, the Worker will be triggered by Notion Webhook (once configured) whenever a new article is added to your database.
