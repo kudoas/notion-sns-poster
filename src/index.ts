@@ -60,9 +60,22 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
   }
 }
 
+type Env = { SKIP_HOURS: string };
+
+function shouldSkip(now: Date, env: Env): boolean {
+  const currentHour = now.getUTCHours();
+  const skipHours = (env.SKIP_HOURS || "").split(",").map(Number);
+  return skipHours.includes(currentHour);
+}
+
 export default {
   fetch: app.fetch,
   scheduled: async (event: any, env: any, ctx: any) => {
+    const now = new Date();
+    if (shouldSkip(now, env)) {
+      console.log("Skipping scheduled task at " + now.toISOString());
+      return;
+    }
     ctx.waitUntil(scheduledHandler(event, env, ctx));
   },
-}; 
+};
