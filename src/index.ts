@@ -4,6 +4,7 @@ import { BlueskyPoster } from './sns/bluesky'
 import { Article, SnsPoster } from './sns/interface'
 import { TwitterPoster } from './sns/twitter'
 import { iteratePaginatedAPI } from '@notionhq/client'
+import { provideBlueskyConfig, provideNotionConfig, provideTwitterConfig } from './config'
 
 const app = new Hono()
 
@@ -23,37 +24,17 @@ app.get('/run-scheduled', async (c) => {
 })
 
 async function scheduledHandler(event: any, env: any, ctx: any) {
-  const notionApiKey = env.NOTION_API_KEY as string
-  const notionDatabaseId = env.NOTION_DATABASE_ID as string
-  if (!notionApiKey || !notionDatabaseId) {
-    console.error('No environment variables set (Notion).');
-    return;
-  }
-
-  const blueskyIdentifier = env.BLUESKY_IDENTIFIER as string
-  const blueskyPassword = env.BLUESKY_PASSWORD as string
-  const blueskyService = env.BLUESKY_SERVICE as string | undefined
-
-  const twitterAppKey = env.TWITTER_CONSUMER_KEY as string
-  const twitterAppSecret = env.TWITTER_CONSUMER_SECRET as string
-  const twitterAccessToken = env.TWITTER_ACCESS_TOKEN as string
-  const twitterAccessSecret = env.TWITTER_ACCESS_SECRET as string
-
-  const hasBlueskyAuth = blueskyIdentifier && blueskyPassword;
-  const hasTwitterAuth = twitterAppKey && twitterAppSecret && twitterAccessToken && twitterAccessSecret;
-  if (!hasBlueskyAuth && !hasTwitterAuth) {
-    console.error('No Bluesky or Twitter authentication credentials set.');
-    return;
-  }
+  const { NotionDatabaseId, NotionApiKey } = provideNotionConfig(env)
+  const { BlueskyIdentifier, BlueskyPassword, BlueskyService } = provideBlueskyConfig(env)
+  const { TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret } = provideTwitterConfig(env)
 
   // ref. https://github.com/makenotion/notion-sdk-js/pull/506
-  const notion = new Client({ auth: notionApiKey, fetch: fetch.bind(globalThis) })
+  const notion = new Client({ auth: NotionApiKey, fetch: fetch.bind(globalThis) })
+  const blueskyPoster = new BlueskyPoster(BlueskyIdentifier, BlueskyPassword, BlueskyService)
+  const twitterPoster = new TwitterPoster(TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret)
+
   const posters: SnsPoster[] = [];
-
-  const blueskyPoster = new BlueskyPoster(blueskyIdentifier, blueskyPassword, blueskyService);
   posters.push(blueskyPoster);
-
-  const twitterPoster = new TwitterPoster(twitterAppKey, twitterAppSecret, twitterAccessToken, twitterAccessSecret);
   posters.push(twitterPoster);
 
   if (posters.length === 0) {
@@ -64,7 +45,7 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
   try {
     const articlesToPost: Article[] = []
     for await (const page of iteratePaginatedAPI(notion.databases.query, {
-      database_id: notionDatabaseId,
+      database_id: NotionDatabaseId,
       filter: {
         property: 'Posted',
         checkbox: { equals: false },
@@ -117,8 +98,9 @@ async function scheduledHandler(event: any, env: any, ctx: any) {
         console.warn(`Article ${article.id} failed to post to all configured SNS. Skipping Notion flag update.`)
       }
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error in scheduled handler:', error.message);
+    throw error;
   }
 }
 
