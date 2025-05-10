@@ -13,34 +13,15 @@ app.get('/health-check', (c) => {
 
 app.post('/notion-webhook', async (c) => {
   try {
-    const body = await c.req.json()
-    if (body.verification_token) {
-      console.log('Received verification_token:', body.verification_token)
-      // TODO: 将来的にはこのトークンを安全に保存し、ペイロード検証に使用します。
-      // https://developers.notion.com/reference/webhooks#step-3-validating-event-payloads-recommended
-      return c.json({ message: 'Verification token received. Please check your server logs.' })
-    } else {
-      console.warn('Verification token not found in request body:', body)
-      return c.json({ error: 'Verification token not found' }, 400)
-    }
+    await webhookHandler(null, c.env as any, c.executionCtx)
+    return c.text('Webhook received successfully!')
   } catch (error) {
-    console.error('Error handling Notion webhook:', error)
-    return c.json({ error: 'Failed to process webhook' }, 500)
+    console.error('Error in webhook handler:', error);
+    return c.text(`Error in webhook handler: ${error.message}`, 500);
   }
 })
 
-app.get('/run-scheduled', async (c) => {
-  console.log('Manually triggering scheduled handler...')
-  try {
-    await scheduledHandler(null, c.env as any, c.executionCtx)
-    return c.text('Scheduled handler triggered successfully!')
-  } catch (error) {
-    console.error('Error triggering scheduled handler:', error);
-    return c.text(`Error triggering scheduled handler: ${error.message}`, 500);
-  }
-})
-
-async function scheduledHandler(event: any, env: any, ctx: any) {
+async function webhookHandler(event: any, env: any, ctx: any) {
   const { NotionDatabaseId, NotionApiKey } = provideNotionConfig(env)
   const { BlueskyIdentifier, BlueskyPassword, BlueskyService } = provideBlueskyConfig(env)
   const { TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret } = provideTwitterConfig(env)
@@ -88,12 +69,4 @@ function shouldSkip(now: Date, env: Env): boolean {
 
 export default {
   fetch: app.fetch,
-  scheduled: async (event: any, env: any, ctx: any) => {
-    const now = new Date();
-    if (shouldSkip(now, env)) {
-      console.log("Skipping scheduled task at " + now.toISOString());
-      return;
-    }
-    ctx.waitUntil(scheduledHandler(event, env, ctx));
-  },
 };
