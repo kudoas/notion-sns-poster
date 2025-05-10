@@ -13,22 +13,35 @@ app.get('/health-check', (c) => {
 
 app.post('/notion-webhook', async (c) => {
   try {
-    await webhookHandler(null, c.env as any, c.executionCtx)
+    const rawBody = await c.req.text();
+    await webhookHandler(c.env as any, c.executionCtx, c.req.raw, rawBody);
     return c.text('Webhook received successfully!')
   } catch (error) {
     console.error('Error in webhook handler:', error);
-    return c.text(`Error in webhook handler: ${error.message}`, 500);
+    const message = error instanceof Error ? error.message : String(error);
+    return c.text(`Error in webhook handler: ${message}`, 500);
   }
 })
 
-async function webhookHandler(event: any, env: any, ctx: any) {
-  const { NotionDatabaseId, NotionApiKey } = provideNotionConfig(env)
+async function webhookHandler(
+  env: any,
+  ctx: any,
+  request: Request,
+  rawBody: string
+) {
+  const { NotionDatabaseId, NotionApiKey, NotionVerificationToken } = provideNotionConfig(env)
   const { BlueskyIdentifier, BlueskyPassword, BlueskyService } = provideBlueskyConfig(env)
   const { TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret } = provideTwitterConfig(env)
 
-  const notion = new NotionRepository(NotionApiKey, NotionDatabaseId)
+  const notion = new NotionRepository(NotionApiKey, NotionDatabaseId, NotionVerificationToken)
   const blueskyPoster = new BlueskyPoster(BlueskyIdentifier, BlueskyPassword, BlueskyService)
   const twitterPoster = new TwitterPoster(TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret)
+
+  // verifyWebhookSignature に request (Request オブジェクト) と rawBody (生ボディ文字列) を渡す
+  const verified = await notion.verifyWebhookSignature(request, rawBody);
+  if (!verified) {
+    throw new Error('Invalid webhook signature');
+  }
 
   const posters: SnsPoster[] = [];
   posters.push(blueskyPoster);
@@ -41,7 +54,7 @@ async function webhookHandler(event: any, env: any, ctx: any) {
   try {
     const targetArticles = await notion.getUnpostedArticles();
     if (targetArticles.length === 0) {
-      console.log('No articles to post.');
+      console.log('No articles to post based on current logic.');
       return;
     }
 
@@ -57,14 +70,6 @@ async function webhookHandler(event: any, env: any, ctx: any) {
     console.error('Error in scheduled handler:', error.message);
     throw error;
   }
-}
-
-type Env = { SKIP_HOURS: string };
-
-function shouldSkip(now: Date, env: Env): boolean {
-  const currentHour = now.getUTCHours();
-  const skipHours = (env.SKIP_HOURS || "").split(",").map(Number);
-  return skipHours.includes(currentHour);
 }
 
 export default {

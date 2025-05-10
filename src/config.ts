@@ -8,6 +8,7 @@ interface TwitterConfig {
 interface NotionConfig {
   NotionDatabaseId: string
   NotionApiKey: string
+  NotionVerificationToken: string
 }
 
 interface BlueskyConfig {
@@ -31,11 +32,12 @@ export function provideTwitterConfig(env: any): TwitterConfig {
 export function provideNotionConfig(env: any): NotionConfig {
   const NotionDatabaseId = env.NOTION_DATABASE_ID
   const NotionApiKey = env.NOTION_API_KEY
-  if (!NotionDatabaseId || !NotionApiKey) {
-    throw new Error('NOTION_DATABASE_ID and NOTION_API_KEY must be set')
+  const NotionVerificationToken = env.NOTION_VERIFICATION_TOKEN
+  if (!NotionDatabaseId || !NotionApiKey || !NotionVerificationToken) {
+    throw new Error('NOTION_DATABASE_ID, NOTION_API_KEY, and NOTION_VERIFICATION_TOKEN must be set')
   }
 
-  return { NotionDatabaseId, NotionApiKey }
+  return { NotionDatabaseId, NotionApiKey, NotionVerificationToken }
 }
 
 export function provideBlueskyConfig(env: any): BlueskyConfig {

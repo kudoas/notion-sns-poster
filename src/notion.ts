@@ -1,4 +1,5 @@
 import { Client, iteratePaginatedAPI } from '@notionhq/client';
+import { createHmac, timingSafeEqual } from "node:crypto"
 import { Article } from './sns/interface';
 
 export class NotionRepository {
@@ -7,8 +8,36 @@ export class NotionRepository {
   constructor(
     private readonly notionApiKey: string,
     private readonly databaseId: string,
+    private readonly verificationToken: string,
   ) {
     this.notion = new Client({ auth: this.notionApiKey, fetch: fetch.bind(globalThis) });
+  }
+
+  async verifyWebhookSignature(request: Request, rawBody: string): Promise<boolean> {
+    const signature = request.headers.get('X-Notion-Signature');
+    if (!signature) {
+      console.error('Missing X-Notion-Signature header in received request');
+      return false;
+    }
+
+    try {
+      const calculatedSignature = `sha256=${createHmac("sha256", this.verificationToken)
+        .update(rawBody)
+        .digest("hex")}`;
+
+      const sigBuffer = Buffer.from(signature);
+      const calculatedSigBuffer = Buffer.from(calculatedSignature);
+
+      if (sigBuffer.length !== calculatedSigBuffer.length) {
+        console.error('Signature length mismatch.');
+        return false;
+      }
+
+      return timingSafeEqual(sigBuffer, calculatedSigBuffer);
+    } catch (error) {
+      console.error('Error during signature calculation or comparison:', error);
+      return false;
+    }
   }
 
   async getUnpostedArticles(): Promise<Article[]> {
