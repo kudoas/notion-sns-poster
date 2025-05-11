@@ -13,6 +13,9 @@ export class NotionRepository {
     this.notion = new Client({ auth: this.notionApiKey, fetch: fetch.bind(globalThis) });
   }
 
+  /**
+   * @see https://developers.notion.com/reference/webhooks#step-3-validating-event-payloads-recommended
+   */
   async verifyWebhookSignature(request: Request, rawBody: string): Promise<boolean> {
     const signature = request.headers.get('X-Notion-Signature');
     if (!signature) {

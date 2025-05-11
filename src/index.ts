@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, Context } from 'hono'
 import { provideBlueskyConfig, provideNotionConfig, provideTwitterConfig } from './config'
 import { NotionRepository } from './notion'
 import { BlueskyPoster } from './sns/bluesky'
@@ -11,10 +11,9 @@ app.get('/health-check', (c) => {
   return c.text('OK')
 })
 
-app.post('/notion-webhook', async (c) => {
+app.post('/notion-webhook', async (c: Context) => {
   try {
-    const rawBody = await c.req.text();
-    await webhookHandler(c.env as any, c.executionCtx, c.req.raw, rawBody);
+    await webhookHandler(c);
     return c.text('Webhook received successfully!')
   } catch (error) {
     console.error('Error in webhook handler:', error);
@@ -24,11 +23,12 @@ app.post('/notion-webhook', async (c) => {
 })
 
 async function webhookHandler(
-  env: any,
-  ctx: any,
-  request: Request,
-  rawBody: string
+  c: Context
 ) {
+  const env = c.env;
+  const request = c.req.raw;
+  const rawBody = await c.req.text();
+
   const { NotionDatabaseId, NotionApiKey, NotionVerificationToken } = provideNotionConfig(env)
   const { BlueskyIdentifier, BlueskyPassword, BlueskyService } = provideBlueskyConfig(env)
   const { TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret } = provideTwitterConfig(env)
@@ -37,7 +37,6 @@ async function webhookHandler(
   const blueskyPoster = new BlueskyPoster(BlueskyIdentifier, BlueskyPassword, BlueskyService)
   const twitterPoster = new TwitterPoster(TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret)
 
-  // verifyWebhookSignature に request (Request オブジェクト) と rawBody (生ボディ文字列) を渡す
   const verified = await notion.verifyWebhookSignature(request, rawBody);
   if (!verified) {
     throw new Error('Invalid webhook signature');
