@@ -23,7 +23,13 @@ export function provideTwitterConfig(env: any): TwitterConfig {
   const TwitterAccessToken = env.TWITTER_ACCESS_TOKEN as string
   const TwitterAccessSecret = env.TWITTER_ACCESS_SECRET as string
   if (!TwitterConsumerKey || !TwitterConsumerSecret || !TwitterAccessToken || !TwitterAccessSecret) {
-    throw new Error('TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET must be set')
+    const notSetKeys = [
+      !TwitterConsumerKey && 'TWITTER_CONSUMER_KEY',
+      !TwitterConsumerSecret && 'TWITTER_CONSUMER_SECRET',
+      !TwitterAccessToken && 'TWITTER_ACCESS_TOKEN',
+      !TwitterAccessSecret && 'TWITTER_ACCESS_SECRET',
+    ].filter(Boolean).join(', ')
+    throw new Error(`${notSetKeys} must be set`)
   }
 
   return { TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret }
@@ -34,7 +40,12 @@ export function provideNotionConfig(env: any): NotionConfig {
   const NotionApiKey = env.NOTION_API_KEY
   const NotionVerificationToken = env.NOTION_VERIFICATION_TOKEN
   if (!NotionDatabaseId || !NotionApiKey || !NotionVerificationToken) {
-    throw new Error('NOTION_DATABASE_ID, NOTION_API_KEY, and NOTION_VERIFICATION_TOKEN must be set')
+    const notSetKeys = [
+      !NotionDatabaseId && 'NOTION_DATABASE_ID',
+      !NotionApiKey && 'NOTION_API_KEY',
+      !NotionVerificationToken && 'NOTION_VERIFICATION_TOKEN',
+    ].filter(Boolean).join(', ')
+    throw new Error(`${notSetKeys} must be set`)
   }
 
   return { NotionDatabaseId, NotionApiKey, NotionVerificationToken }
@@ -45,7 +56,12 @@ export function provideBlueskyConfig(env: any): BlueskyConfig {
   const BlueskyPassword = env.BLUESKY_PASSWORD
   const BlueskyService = env.BLUESKY_SERVICE || 'https://bsky.social'
   if (!BlueskyIdentifier || !BlueskyPassword || !BlueskyService) {
-    throw new Error('BLUESKY_IDENTIFIER, BLUESKY_PASSWORD, and BLUESKY_SERVICE must be set')
+    const notSetKeys = [
+      !BlueskyIdentifier && 'BLUESKY_IDENTIFIER',
+      !BlueskyPassword && 'BLUESKY_PASSWORD',
+      !BlueskyService && 'BLUESKY_SERVICE',
+    ].filter(Boolean).join(', ')
+    throw new Error(`${notSetKeys} must be set`)
   }
 
   return { BlueskyIdentifier, BlueskyPassword, BlueskyService }
