@@ -57,14 +57,14 @@ async function webhookHandler(
       return;
     }
 
-    // 1回の実行につき1件だけ投稿する
-    const article = targetArticles[0];
-    const postPromises = posters.map(poster => poster.postArticle(article).catch(e => {
-      console.error(`Error posting article ${article.id} to one SNS:`, e);
-      return { status: 'rejected', reason: e };
-    }));
-    await Promise.allSettled(postPromises);
-    await notion.markArticleAsPosted(article.id);
+    for (const article of targetArticles) {
+      const postPromises = posters.map(poster => poster.postArticle(article).catch(e => {
+        console.error(`Error posting article ${article.id} to one SNS:`, e);
+        return { status: 'rejected', reason: e };
+      }));
+      await Promise.allSettled(postPromises);
+      await notion.markArticleAsPosted(article.id);
+    }
   } catch (error) {
     console.error('Error in scheduled handler:', error.message);
     throw error;
