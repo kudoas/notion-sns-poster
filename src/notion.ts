@@ -69,7 +69,7 @@ export class NotionRepository {
       } else if (titleProperty?.type === 'rich_text') {
         title = titleProperty.rich_text.map((t: any) => t.plain_text).join('');
       }
-      let url = urlProperty?.type === 'url' ? urlProperty.url : null;
+      const url = urlProperty?.type === 'url' ? urlProperty.url : null;
 
       if (title && url) {
         articles.push({ id: pageId, title, url });
@@ -84,6 +84,23 @@ export class NotionRepository {
       properties: {
         'Posted': {
           checkbox: true,
+        },
+      },
+    });
+  }
+
+  async updateArticleSummary(articleId: string, summary: string): Promise<void> {
+    await this.notion.pages.update({
+      page_id: articleId,
+      properties: {
+        'AISummary': {
+          rich_text: [
+            {
+              text: {
+                content: summary,
+              },
+            },
+          ],
         },
       },
     });

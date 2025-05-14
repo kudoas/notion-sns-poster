@@ -17,6 +17,10 @@ interface BlueskyConfig {
   BlueskyService: string
 }
 
+interface GeminiConfig {
+  GeminiApiKey: string;
+}
+
 export function provideTwitterConfig(env: any): TwitterConfig {
   const TwitterConsumerKey = env.TWITTER_CONSUMER_KEY as string
   const TwitterConsumerSecret = env.TWITTER_CONSUMER_SECRET as string
@@ -65,4 +69,12 @@ export function provideBlueskyConfig(env: any): BlueskyConfig {
   }
 
   return { BlueskyIdentifier, BlueskyPassword, BlueskyService }
+}
+
+export function provideGeminiConfig(env: any): GeminiConfig {
+  const GeminiApiKey = env.GEMINI_API_KEY as string;
+  if (!GeminiApiKey) {
+    throw new Error('GEMINI_API_KEY must be set');
+  }
+  return { GeminiApiKey };
 }
