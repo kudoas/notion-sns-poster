@@ -40,7 +40,7 @@ async function webhookHandler(
   const twitterPoster = new TwitterPoster(TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret)
 
   const genAI = new GoogleGenerativeAI(GeminiApiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
 
   const verified = await notion.verifyWebhookSignature(request, rawBody);
   if (!verified) {
