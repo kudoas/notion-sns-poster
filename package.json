@@ -16,8 +16,9 @@
     "oauth-1.0a": "2.2.6"
   },
   "devDependencies": {
-    "wrangler": "4.20.0",
+    "@types/crypto-js": "^4.2.2",
+    "bun-types": "latest",
     "typescript": "5.8.3",
-    "bun-types": "latest"
+    "wrangler": "4.20.0"
   }
 }
