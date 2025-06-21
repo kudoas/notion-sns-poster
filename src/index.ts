@@ -75,13 +75,14 @@ async function webhookHandler(
             console.log(`Summary generated and updated for article ${article.id} using URL: ${article.url}`);
           }
         } catch (error) {
-          console.error(`Error generating summary for article ${article.id} (URL: ${article.url}):`, error);
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`Error generating summary for article ${article.id} (URL: ${article.url}):`, message);
         }
       } else {
         console.log(`Article ${article.id} has no URL or URL is empty. Skipping summary generation.`);
       }
 
-      const postPromises = posters.map(poster => poster.postArticle(article).catch(e => {
+      const postPromises = posters.map(poster => poster.postArticle(article).catch((e: unknown) => {
         console.error(`Error posting article ${article.id} to one SNS:`, e);
         return { status: 'rejected', reason: e };
       }));
@@ -89,7 +90,8 @@ async function webhookHandler(
       await notion.markArticleAsPosted(article.id);
     }
   } catch (error) {
-    console.error('Error in scheduled handler:', error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Error in scheduled handler:', message);
     throw error;
   }
 }

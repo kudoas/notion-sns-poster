@@ -24,8 +24,9 @@ export class TwitterPoster implements SnsPoster {
         throw new Error(`Failed to post article ${article.id} to Twitter: ${resp.status} ${resp.statusText} ${body}`);
       }
     } catch (e) {
-      console.error('Error posting article to X (Twitter):', e.message);
-      throw e
+      const message = e instanceof Error ? e.message : String(e);
+      console.error('Error posting article to X (Twitter):', message);
+      throw e;
     }
   }
 

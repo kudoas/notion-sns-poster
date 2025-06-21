@@ -18,7 +18,8 @@ export class BlueskyPoster implements SnsPoster {
       await rt.detectFacets(agent);
       await agent.post({ text: rt.text, facets: rt.facets });
     } catch (e) {
-      console.error('Failed to post to Bluesky:', e.message);
+      const message = e instanceof Error ? e.message : String(e);
+      console.error('Failed to post to Bluesky:', message);
       throw e;
     }
   }

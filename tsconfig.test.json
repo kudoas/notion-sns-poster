@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "bun-types/test"
+    ]
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/test-utils.ts"
+  ],
+  "exclude": []
+}
