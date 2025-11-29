@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "minimumReleaseAge": "3 days",
+  "minimumReleaseAge": "1 day",
   "prHourlyLimit": 5,
   "prConcurrentLimit": 10,
   "rangeStrategy": "bump"
