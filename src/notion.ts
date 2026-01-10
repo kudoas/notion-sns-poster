@@ -45,8 +45,8 @@ export class NotionRepository {
 
   async getUnpostedArticles(): Promise<Article[]> {
     const articles: Article[] = [];
-    for await (const page of iteratePaginatedAPI(this.notion.databases.query, {
-      database_id: this.databaseId,
+    for await (const page of iteratePaginatedAPI(this.notion.dataSources.query, {
+      data_source_id: this.databaseId,
       filter: {
         property: 'Posted',
         checkbox: { equals: false },
@@ -58,7 +58,11 @@ export class NotionRepository {
         },
       ],
     })) {
-      const { properties } = page as any;
+      // Type guard to ensure we have a page with properties
+      if (!('properties' in page)) {
+        continue;
+      }
+      const { properties } = page;
       const titleProperty = properties.Title;
       const urlProperty = properties.URL;
       const pageId = page.id;
@@ -71,7 +75,7 @@ export class NotionRepository {
       }
       const url = urlProperty?.type === 'url' ? urlProperty.url : null;
 
-      if (title && url) {
+      if (title && url && typeof url === 'string') {
         articles.push({ id: pageId, title, url });
       }
     }
