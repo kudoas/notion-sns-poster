@@ -11,6 +11,10 @@ interface NotionConfig {
   NotionVerificationToken: string
 }
 
+interface NotionWebhookConfig {
+  NotionVerificationToken: string
+}
+
 interface BlueskyConfig {
   BlueskyIdentifier: string
   BlueskyPassword: string
@@ -18,7 +22,7 @@ interface BlueskyConfig {
 }
 
 interface GeminiConfig {
-  GeminiApiKey: string;
+  GeminiApiKey: string
 }
 
 export function provideTwitterConfig(env: any): TwitterConfig {
@@ -32,7 +36,9 @@ export function provideTwitterConfig(env: any): TwitterConfig {
       !TwitterConsumerSecret && 'TWITTER_CONSUMER_SECRET',
       !TwitterAccessToken && 'TWITTER_ACCESS_TOKEN',
       !TwitterAccessSecret && 'TWITTER_ACCESS_SECRET',
-    ].filter(Boolean).join(', ')
+    ]
+      .filter(Boolean)
+      .join(', ')
     throw new Error(`${notSetKeys} must be set`)
   }
 
@@ -48,11 +54,22 @@ export function provideNotionConfig(env: any): NotionConfig {
       !NotionDatabaseId && 'NOTION_DATABASE_ID',
       !NotionApiKey && 'NOTION_API_KEY',
       !NotionVerificationToken && 'NOTION_VERIFICATION_TOKEN',
-    ].filter(Boolean).join(', ')
+    ]
+      .filter(Boolean)
+      .join(', ')
     throw new Error(`${notSetKeys} must be set`)
   }
 
   return { NotionDatabaseId, NotionApiKey, NotionVerificationToken }
+}
+
+export function provideNotionWebhookConfig(env: any): NotionWebhookConfig {
+  const NotionVerificationToken = env.NOTION_VERIFICATION_TOKEN
+  if (!NotionVerificationToken) {
+    throw new Error('NOTION_VERIFICATION_TOKEN must be set')
+  }
+
+  return { NotionVerificationToken }
 }
 
 export function provideBlueskyConfig(env: any): BlueskyConfig {
@@ -64,7 +81,9 @@ export function provideBlueskyConfig(env: any): BlueskyConfig {
       !BlueskyIdentifier && 'BLUESKY_IDENTIFIER',
       !BlueskyPassword && 'BLUESKY_PASSWORD',
       !BlueskyService && 'BLUESKY_SERVICE',
-    ].filter(Boolean).join(', ')
+    ]
+      .filter(Boolean)
+      .join(', ')
     throw new Error(`${notSetKeys} must be set`)
   }
 
@@ -72,9 +91,9 @@ export function provideBlueskyConfig(env: any): BlueskyConfig {
 }
 
 export function provideGeminiConfig(env: any): GeminiConfig {
-  const GeminiApiKey = env.GEMINI_API_KEY as string;
+  const GeminiApiKey = env.GEMINI_API_KEY as string
   if (!GeminiApiKey) {
-    throw new Error('GEMINI_API_KEY must be set');
+    throw new Error('GEMINI_API_KEY must be set')
   }
-  return { GeminiApiKey };
+  return { GeminiApiKey }
 }
