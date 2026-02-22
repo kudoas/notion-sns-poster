@@ -2,6 +2,14 @@ import { Client, isFullDatabase, iteratePaginatedAPI } from '@notionhq/client'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { Article } from './sns/interface'
 
+function maskSignature(signature: string): string {
+  if (signature.length <= 24) {
+    return signature
+  }
+
+  return `${signature.slice(0, 12)}...${signature.slice(-12)}`
+}
+
 export function verifyNotionWebhookSignature(verificationToken: string, request: Request, rawBody: string): boolean {
   const signature = request.headers.get('X-Notion-Signature')
   if (!signature) {
@@ -16,11 +24,18 @@ export function verifyNotionWebhookSignature(verificationToken: string, request:
     const calculatedSigBuffer = Buffer.from(calculatedSignature)
 
     if (sigBuffer.length !== calculatedSigBuffer.length) {
-      console.error('Signature length mismatch.')
+      console.error(
+        `Signature length mismatch. receivedLength=${sigBuffer.length}, expectedLength=${calculatedSigBuffer.length}, received=${maskSignature(signature)}, expected=${maskSignature(calculatedSignature)}`
+      )
       return false
     }
 
-    return timingSafeEqual(sigBuffer, calculatedSigBuffer)
+    const isValid = timingSafeEqual(sigBuffer, calculatedSigBuffer)
+    if (!isValid) {
+      console.error(`Signature mismatch. received=${maskSignature(signature)}, expected=${maskSignature(calculatedSignature)}`)
+    }
+
+    return isValid
   } catch (error) {
     console.error('Error during signature calculation or comparison:', error)
     return false
