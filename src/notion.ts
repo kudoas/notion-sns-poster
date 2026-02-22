@@ -1,4 +1,4 @@
-import { Client, iteratePaginatedAPI } from '@notionhq/client'
+import { Client, isFullDatabase, iteratePaginatedAPI } from '@notionhq/client'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { Article } from './sns/interface'
 
@@ -45,10 +45,26 @@ export class NotionRepository {
     return verifyNotionWebhookSignature(this.verificationToken, request, rawBody)
   }
 
+  private async getPrimaryDataSourceId(): Promise<string> {
+    const database = await this.notion.databases.retrieve({ database_id: this.databaseId })
+    if (!isFullDatabase(database)) {
+      throw new Error(`Failed to retrieve full database schema for database: ${this.databaseId}`)
+    }
+
+    const primaryDataSource = database.data_sources[0]
+    if (!primaryDataSource?.id) {
+      throw new Error(`No data source found in database: ${this.databaseId}`)
+    }
+
+    return primaryDataSource.id
+  }
+
   async getUnpostedArticles(): Promise<Article[]> {
     const articles: Article[] = []
-    for await (const page of iteratePaginatedAPI(this.notion.databases.query, {
-      database_id: this.databaseId,
+    const dataSourceId = await this.getPrimaryDataSourceId()
+
+    for await (const page of iteratePaginatedAPI(this.notion.dataSources.query, {
+      data_source_id: dataSourceId,
       filter: {
         property: 'Posted',
         checkbox: { equals: false },
@@ -59,7 +75,12 @@ export class NotionRepository {
           direction: 'ascending',
         },
       ],
+      result_type: 'page',
     })) {
+      if (page.object !== 'page' || !('properties' in page)) {
+        continue
+      }
+
       const { properties } = page as any
       const titleProperty = properties.Title
       const urlProperty = properties.URL
