@@ -1,5 +1,5 @@
 {
-  "name": "notion-sns-poster",
+  "name": "notion-relay",
   "version": "0.0.1",
   "scripts": {
     "dev": "wrangler dev",

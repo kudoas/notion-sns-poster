@@ -1,4 +1,4 @@
-# notion-sns-poster (Notion to SNS Auto Post)
+# notion-relay (Notion to SNS Auto Post)
 
 ## Overview
 
