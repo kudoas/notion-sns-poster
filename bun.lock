@@ -8,7 +8,7 @@
         "@google/generative-ai": "^0.24.1",
         "@notionhq/client": "5.9.0",
         "crypto-js": "4.2.0",
-        "hono": "4.11.10",
+        "hono": "4.12.0",
         "oauth-1.0a": "2.2.6",
       },
       "devDependencies": {
@@ -196,7 +196,7 @@
 
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 
-    "hono": ["hono@4.11.10", "", {}, "sha512-kyWP5PAiMooEvGrA9jcD3IXF7ATu8+o7B3KCbPXid5se52NPqnOpM/r9qeW2heMnOekF4kqR1fXJqCYeCLKrZg=="],
+    "hono": ["hono@4.12.0", "", {}, "sha512-NekXntS5M94pUfiVZ8oXXK/kkri+5WpX2/Ik+LVsl+uvw+soj4roXIsPqO+XsWrAw20mOzaXOZf3Q7PfB9A/IA=="],
 
     "iso-datestring-validator": ["iso-datestring-validator@2.2.2", "", {}, "sha512-yLEMkBbLZTlVQqOnQ4FiMujR6T4DEcCb1xizmvXS+OxuhwcbtynoosRzdMA69zZCShCNAbi+gJ71FxZBBXx1SA=="],
 
