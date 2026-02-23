@@ -25,5 +25,8 @@ jobs:
       - name: Run type check
         run: bun run typecheck
 
+      - name: Run Biome lint
+        run: bun run lint
+
       - name: Run tests
         run: bun test

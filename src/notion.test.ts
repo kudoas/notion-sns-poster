@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'bun:test'
-import { createHmac } from 'node:crypto'
-import { verifyNotionWebhookSignature } from './notion'
+import { verifyNotionWebhookSignature } from './notion.ts'
 
-function buildSignature(secret: string, payload: string): string {
-  const hash = createHmac('sha256', secret).update(payload).digest('hex')
+async function buildSignature(secret: string, payload: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload))
+  const hash = Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+
   return `sha256=${hash}`
 }
 
-describe('verifyNotionWebhookSignature', () => {
+describe('verify notion webhook signature', () => {
   it('returns false when signature header is missing', () => {
     const req = new Request('https://example.com/notion-webhook', {
       method: 'POST',
@@ -18,10 +23,10 @@ describe('verifyNotionWebhookSignature', () => {
     expect(actual).toBe(false)
   })
 
-  it('returns true when signature matches body', () => {
+  it('returns true when signature matches body', async () => {
     const body = '{"type":"event"}'
     const secret = 'my-secret'
-    const signature = buildSignature(secret, body)
+    const signature = await buildSignature(secret, body)
     const req = new Request('https://example.com/notion-webhook', {
       method: 'POST',
       headers: { 'X-Notion-Signature': signature },
@@ -32,11 +37,12 @@ describe('verifyNotionWebhookSignature', () => {
     expect(actual).toBe(true)
   })
 
-  it('returns false when signature does not match', () => {
+  it('returns false when signature does not match', async () => {
     const body = '{"type":"event"}'
+    const wrongSignature = await buildSignature('wrong-secret', body)
     const req = new Request('https://example.com/notion-webhook', {
       method: 'POST',
-      headers: { 'X-Notion-Signature': buildSignature('wrong-secret', body) },
+      headers: { 'X-Notion-Signature': wrongSignature },
       body,
     })
 

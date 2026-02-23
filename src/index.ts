@@ -1,23 +1,26 @@
-import { Hono, Context } from 'hono'
-import { provideBlueskyConfig, provideNotionConfig, provideTwitterConfig, provideGeminiConfig, provideNotionWebhookConfig } from './config'
-import { NotionRepository, verifyNotionWebhookSignature } from './notion'
-import { BlueskyPoster } from './sns/bluesky'
-import { SnsPoster } from './sns/interface'
-import { TwitterPoster } from './sns/twitter'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { type Context, Hono } from 'hono'
+import {
+  provideBlueskyConfig,
+  provideGeminiConfig,
+  provideNotionConfig,
+  provideNotionWebhookConfig,
+  provideTwitterConfig,
+} from './config.ts'
+import { NotionRepository, verifyNotionWebhookSignature } from './notion.ts'
+import { BlueskyPoster } from './sns/bluesky.ts'
+import type { SnsPoster } from './sns/interface.ts'
+import { TwitterPoster } from './sns/twitter.ts'
 
-const app = new Hono()
+const app: Hono = new Hono()
 
-app.get('/health-check', (c) => {
-  return c.text('OK')
-})
+app.get('/health-check', (c) => c.text('OK'))
 
 app.post('/notion-webhook', async (c: Context) => {
   try {
     const { message, status } = await webhookHandler(c)
     return c.text(message, status)
   } catch (error) {
-    console.error('Error in webhook handler:', error)
     const message = error instanceof Error ? error.message : String(error)
     return c.text(`Error in webhook handler: ${message}`, 500)
   }
@@ -41,30 +44,29 @@ async function webhookHandler(c: Context): Promise<{ message: string; status: 20
   // Notion subscription verification flow sends a one-time verification_token.
   // It should be acknowledged with 200 and captured from Worker logs.
   if (verificationTokenFromPayload) {
-    console.log(`Received Notion verification token: ${verificationTokenFromPayload}`)
     return {
       message: 'Verification token received. Check Worker logs for the token value.',
       status: 200,
     }
   }
 
-  const { NotionVerificationToken: webhookVerificationToken } = provideNotionWebhookConfig(env)
+  const { notionVerificationToken: webhookVerificationToken } = provideNotionWebhookConfig(env)
   const verified = verifyNotionWebhookSignature(webhookVerificationToken, request, rawBody)
   if (!verified) {
     return { message: 'Invalid webhook signature', status: 401 }
   }
 
-  const { NotionDatabaseId, NotionApiKey, NotionVerificationToken } = provideNotionConfig(env)
-  const { BlueskyIdentifier, BlueskyPassword, BlueskyService } = provideBlueskyConfig(env)
-  const { TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret } = provideTwitterConfig(env)
-  const { GeminiApiKey } = provideGeminiConfig(env)
+  const { notionDatabaseId, notionApiKey, notionVerificationToken } = provideNotionConfig(env)
+  const { blueskyIdentifier, blueskyPassword, blueskyService } = provideBlueskyConfig(env)
+  const { twitterConsumerKey, twitterConsumerSecret, twitterAccessToken, twitterAccessSecret } = provideTwitterConfig(env)
+  const { geminiApiKey } = provideGeminiConfig(env)
 
-  const notion = new NotionRepository(NotionApiKey, NotionDatabaseId, NotionVerificationToken)
-  const blueskyPoster = new BlueskyPoster(BlueskyIdentifier, BlueskyPassword, BlueskyService)
-  const twitterPoster = new TwitterPoster(TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret)
+  const notion = new NotionRepository(notionApiKey, notionDatabaseId, notionVerificationToken)
+  const blueskyPoster = new BlueskyPoster(blueskyIdentifier, blueskyPassword, blueskyService)
+  const twitterPoster = new TwitterPoster(twitterConsumerKey, twitterConsumerSecret, twitterAccessToken, twitterAccessSecret)
 
-  const genAI = new GoogleGenerativeAI(GeminiApiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
+  const genAi = new GoogleGenerativeAI(geminiApiKey)
+  const model = genAi.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
 
   const posters: SnsPoster[] = []
   posters.push(blueskyPoster)
@@ -77,7 +79,6 @@ async function webhookHandler(c: Context): Promise<{ message: string; status: 20
   try {
     const targetArticles = await notion.getUnpostedArticles()
     if (targetArticles.length === 0) {
-      console.log('No articles to post based on current logic.')
       return { message: 'Webhook received successfully!', status: 200 }
     }
 
@@ -91,29 +92,25 @@ async function webhookHandler(c: Context): Promise<{ message: string; status: 20
 
           if (summary) {
             await notion.updateArticleSummary(article.id, summary.trim())
-            console.log(`Summary generated and updated for article ${article.id} using URL: ${article.url}`)
           }
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          console.error(`Error generating summary for article ${article.id} (URL: ${article.url}):`, message)
+          const _message = error instanceof Error ? error.message : String(error)
         }
       } else {
-        console.log(`Article ${article.id} has no URL or URL is empty. Skipping summary generation.`)
       }
 
       const postPromises = posters.map((poster) =>
         poster.postArticle(article).catch((e: unknown) => {
-          console.error(`Error posting article ${article.id} to one SNS:`, e)
           return { status: 'rejected', reason: e }
-        })
+        }),
       )
       await Promise.allSettled(postPromises)
       await notion.markArticleAsPosted(article.id)
     }
     return { message: 'Webhook received successfully!', status: 200 }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.error('Error in scheduled handler:', message)
+    const _message = error instanceof Error ? error.message : String(error)
+
     throw error
   }
 }

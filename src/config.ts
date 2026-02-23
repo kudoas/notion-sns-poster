@@ -1,99 +1,117 @@
 interface TwitterConfig {
-  TwitterConsumerKey: string
-  TwitterConsumerSecret: string
-  TwitterAccessToken: string
-  TwitterAccessSecret: string
+  twitterConsumerKey: string
+  twitterConsumerSecret: string
+  twitterAccessToken: string
+  twitterAccessSecret: string
 }
 
 interface NotionConfig {
-  NotionDatabaseId: string
-  NotionApiKey: string
-  NotionVerificationToken: string
+  notionDatabaseId: string
+  notionApiKey: string
+  notionVerificationToken: string
 }
 
 interface NotionWebhookConfig {
-  NotionVerificationToken: string
+  notionVerificationToken: string
 }
 
 interface BlueskyConfig {
-  BlueskyIdentifier: string
-  BlueskyPassword: string
-  BlueskyService: string
+  blueskyIdentifier: string
+  blueskyPassword: string
+  blueskyService: string
 }
 
 interface GeminiConfig {
-  GeminiApiKey: string
+  geminiApiKey: string
 }
 
-export function provideTwitterConfig(env: any): TwitterConfig {
-  const TwitterConsumerKey = env.TWITTER_CONSUMER_KEY as string
-  const TwitterConsumerSecret = env.TWITTER_CONSUMER_SECRET as string
-  const TwitterAccessToken = env.TWITTER_ACCESS_TOKEN as string
-  const TwitterAccessSecret = env.TWITTER_ACCESS_SECRET as string
-  if (!TwitterConsumerKey || !TwitterConsumerSecret || !TwitterAccessToken || !TwitterAccessSecret) {
+type EnvLike = Record<string, unknown>
+
+function readEnv(env: unknown, key: string): string | undefined {
+  if (typeof env !== 'object' || env === null) {
+    return
+  }
+
+  const value = (env as EnvLike)[key]
+  if (typeof value === 'string' && value.length > 0) {
+    return value
+  }
+}
+
+export function provideTwitterConfig(env: unknown): TwitterConfig {
+  const twitterConsumerKey = readEnv(env, 'TWITTER_CONSUMER_KEY')
+  const twitterConsumerSecret = readEnv(env, 'TWITTER_CONSUMER_SECRET')
+  const twitterAccessToken = readEnv(env, 'TWITTER_ACCESS_TOKEN')
+  const twitterAccessSecret = readEnv(env, 'TWITTER_ACCESS_SECRET')
+  if (!(twitterConsumerKey && twitterConsumerSecret && twitterAccessToken && twitterAccessSecret)) {
     const notSetKeys = [
-      !TwitterConsumerKey && 'TWITTER_CONSUMER_KEY',
-      !TwitterConsumerSecret && 'TWITTER_CONSUMER_SECRET',
-      !TwitterAccessToken && 'TWITTER_ACCESS_TOKEN',
-      !TwitterAccessSecret && 'TWITTER_ACCESS_SECRET',
+      !twitterConsumerKey && 'TWITTER_CONSUMER_KEY',
+      !twitterConsumerSecret && 'TWITTER_CONSUMER_SECRET',
+      !twitterAccessToken && 'TWITTER_ACCESS_TOKEN',
+      !twitterAccessSecret && 'TWITTER_ACCESS_SECRET',
     ]
       .filter(Boolean)
       .join(', ')
     throw new Error(`${notSetKeys} must be set`)
   }
 
-  return { TwitterConsumerKey, TwitterConsumerSecret, TwitterAccessToken, TwitterAccessSecret }
+  return {
+    twitterConsumerKey,
+    twitterConsumerSecret,
+    twitterAccessToken,
+    twitterAccessSecret,
+  }
 }
 
-export function provideNotionConfig(env: any): NotionConfig {
-  const NotionDatabaseId = env.NOTION_DATABASE_ID
-  const NotionApiKey = env.NOTION_API_KEY
-  const NotionVerificationToken = env.NOTION_VERIFICATION_TOKEN
-  if (!NotionDatabaseId || !NotionApiKey || !NotionVerificationToken) {
+export function provideNotionConfig(env: unknown): NotionConfig {
+  const notionDatabaseId = readEnv(env, 'NOTION_DATABASE_ID')
+  const notionApiKey = readEnv(env, 'NOTION_API_KEY')
+  const notionVerificationToken = readEnv(env, 'NOTION_VERIFICATION_TOKEN')
+  if (!(notionDatabaseId && notionApiKey && notionVerificationToken)) {
     const notSetKeys = [
-      !NotionDatabaseId && 'NOTION_DATABASE_ID',
-      !NotionApiKey && 'NOTION_API_KEY',
-      !NotionVerificationToken && 'NOTION_VERIFICATION_TOKEN',
+      !notionDatabaseId && 'NOTION_DATABASE_ID',
+      !notionApiKey && 'NOTION_API_KEY',
+      !notionVerificationToken && 'NOTION_VERIFICATION_TOKEN',
     ]
       .filter(Boolean)
       .join(', ')
     throw new Error(`${notSetKeys} must be set`)
   }
 
-  return { NotionDatabaseId, NotionApiKey, NotionVerificationToken }
+  return { notionDatabaseId, notionApiKey, notionVerificationToken }
 }
 
-export function provideNotionWebhookConfig(env: any): NotionWebhookConfig {
-  const NotionVerificationToken = env.NOTION_VERIFICATION_TOKEN
-  if (!NotionVerificationToken) {
+export function provideNotionWebhookConfig(env: unknown): NotionWebhookConfig {
+  const notionVerificationToken = readEnv(env, 'NOTION_VERIFICATION_TOKEN')
+  if (!notionVerificationToken) {
     throw new Error('NOTION_VERIFICATION_TOKEN must be set')
   }
 
-  return { NotionVerificationToken }
+  return { notionVerificationToken }
 }
 
-export function provideBlueskyConfig(env: any): BlueskyConfig {
-  const BlueskyIdentifier = env.BLUESKY_IDENTIFIER
-  const BlueskyPassword = env.BLUESKY_PASSWORD
-  const BlueskyService = env.BLUESKY_SERVICE || 'https://bsky.social'
-  if (!BlueskyIdentifier || !BlueskyPassword || !BlueskyService) {
+export function provideBlueskyConfig(env: unknown): BlueskyConfig {
+  const blueskyIdentifier = readEnv(env, 'BLUESKY_IDENTIFIER')
+  const blueskyPassword = readEnv(env, 'BLUESKY_PASSWORD')
+  const blueskyService = readEnv(env, 'BLUESKY_SERVICE') ?? 'https://bsky.social'
+  if (!(blueskyIdentifier && blueskyPassword && blueskyService)) {
     const notSetKeys = [
-      !BlueskyIdentifier && 'BLUESKY_IDENTIFIER',
-      !BlueskyPassword && 'BLUESKY_PASSWORD',
-      !BlueskyService && 'BLUESKY_SERVICE',
+      !blueskyIdentifier && 'BLUESKY_IDENTIFIER',
+      !blueskyPassword && 'BLUESKY_PASSWORD',
+      !blueskyService && 'BLUESKY_SERVICE',
     ]
       .filter(Boolean)
       .join(', ')
     throw new Error(`${notSetKeys} must be set`)
   }
 
-  return { BlueskyIdentifier, BlueskyPassword, BlueskyService }
+  return { blueskyIdentifier, blueskyPassword, blueskyService }
 }
 
-export function provideGeminiConfig(env: any): GeminiConfig {
-  const GeminiApiKey = env.GEMINI_API_KEY as string
-  if (!GeminiApiKey) {
+export function provideGeminiConfig(env: unknown): GeminiConfig {
+  const geminiApiKey = readEnv(env, 'GEMINI_API_KEY')
+  if (!geminiApiKey) {
     throw new Error('GEMINI_API_KEY must be set')
   }
-  return { GeminiApiKey }
+  return { geminiApiKey }
 }

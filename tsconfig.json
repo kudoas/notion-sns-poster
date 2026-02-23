@@ -15,9 +15,7 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "allowJs": true,
-    "types": [
-      "bun-types"
-    ],
+    "types": ["bun-types", "bun-types/test"],
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -31,14 +29,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "src/**/*",
-    "*.ts",
-    "*.js"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.test.ts"
-  ]
+  "include": ["src/**/*", "*.ts", "*.js"],
+  "exclude": ["node_modules", "dist"]
 }
