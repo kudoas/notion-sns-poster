@@ -67,7 +67,7 @@ export class NotionRepository {
   constructor(
     private readonly notionApiKey: string,
     private readonly databaseId: string,
-    private readonly verificationToken: string
+    private readonly verificationToken: string,
   ) {
     this.notion = new notionClient.Client({
       auth: this.notionApiKey,

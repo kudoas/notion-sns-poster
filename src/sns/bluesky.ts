@@ -6,7 +6,7 @@ export class BlueskyPoster implements SnsPoster {
   constructor(
     private readonly identifier: string,
     private readonly password: string,
-    private readonly service: string = 'https://bsky.social'
+    private readonly service: string = 'https://bsky.social',
   ) {}
 
   async postArticle(article: Article): Promise<void> {

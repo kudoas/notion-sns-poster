@@ -99,11 +99,7 @@ async function webhookHandler(c: Context): Promise<{ message: string; status: 20
       } else {
       }
 
-      const postPromises = posters.map((poster) =>
-        poster.postArticle(article).catch((e: unknown) => {
-          return { status: 'rejected', reason: e }
-        }),
-      )
+      const postPromises = posters.map((poster) => poster.postArticle(article).catch((e: unknown) => ({ status: 'rejected', reason: e })))
       await Promise.allSettled(postPromises)
       await notion.markArticleAsPosted(article.id)
     }
