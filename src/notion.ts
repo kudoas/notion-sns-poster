@@ -1,8 +1,28 @@
-import { Client, isFullDatabase, iteratePaginatedAPI } from '@notionhq/client'
-import { createHmac, timingSafeEqual } from 'node:crypto'
-import { Article } from './sns/interface'
+import * as notionClient from '@notionhq/client'
+import hmacSha256 from 'crypto-js/hmac-sha256'
+import type { Article } from './sns/interface.ts'
 
-function maskSignature(signature: string): string {
+interface NotionTextFragment {
+  plain_text: string
+}
+interface NotionTitleProperty {
+  type: 'title'
+  title: NotionTextFragment[]
+}
+interface NotionRichTextProperty {
+  type: 'rich_text'
+  rich_text: NotionTextFragment[]
+}
+interface NotionUrlProperty {
+  type: 'url'
+  url: string | null
+}
+interface NotionPageProperties {
+  Title?: NotionTitleProperty | NotionRichTextProperty
+  URL?: NotionUrlProperty
+}
+
+function _maskSignature(signature: string): string {
   if (signature.length <= 24) {
     return signature
   }
@@ -10,47 +30,49 @@ function maskSignature(signature: string): string {
   return `${signature.slice(0, 12)}...${signature.slice(-12)}`
 }
 
+function timingSafeEqualString(left: string, right: string): boolean {
+  if (left.length !== right.length) {
+    return false
+  }
+
+  let diff = 0
+  for (let index = 0; index < left.length; index += 1) {
+    diff |= left.charCodeAt(index) ^ right.charCodeAt(index)
+  }
+
+  return diff === 0
+}
+
 export function verifyNotionWebhookSignature(verificationToken: string, request: Request, rawBody: string): boolean {
   const signature = request.headers.get('X-Notion-Signature')
   if (!signature) {
-    console.error('Missing X-Notion-Signature header in received request')
     return false
   }
 
   try {
-    const calculatedSignature = `sha256=${createHmac('sha256', verificationToken).update(rawBody).digest('hex')}`
-
-    const sigBuffer = Buffer.from(signature)
-    const calculatedSigBuffer = Buffer.from(calculatedSignature)
-
-    if (sigBuffer.length !== calculatedSigBuffer.length) {
-      console.error(
-        `Signature length mismatch. receivedLength=${sigBuffer.length}, expectedLength=${calculatedSigBuffer.length}, received=${maskSignature(signature)}, expected=${maskSignature(calculatedSignature)}`
-      )
+    const calculatedSignature = `sha256=${hmacSha256(rawBody, verificationToken).toString()}`
+    if (signature.length !== calculatedSignature.length) {
       return false
     }
 
-    const isValid = timingSafeEqual(sigBuffer, calculatedSigBuffer)
-    if (!isValid) {
-      console.error(`Signature mismatch. received=${maskSignature(signature)}, expected=${maskSignature(calculatedSignature)}`)
-    }
-
-    return isValid
-  } catch (error) {
-    console.error('Error during signature calculation or comparison:', error)
+    return timingSafeEqualString(signature, calculatedSignature)
+  } catch {
     return false
   }
 }
 
 export class NotionRepository {
-  private notion: Client
+  private readonly notion: notionClient.Client
 
   constructor(
     private readonly notionApiKey: string,
     private readonly databaseId: string,
-    private readonly verificationToken: string
+    private readonly verificationToken: string,
   ) {
-    this.notion = new Client({ auth: this.notionApiKey, fetch: fetch.bind(globalThis) })
+    this.notion = new notionClient.Client({
+      auth: this.notionApiKey,
+      fetch: fetch.bind(globalThis),
+    })
   }
 
   /**
@@ -61,8 +83,10 @@ export class NotionRepository {
   }
 
   private async getPrimaryDataSourceId(): Promise<string> {
-    const database = await this.notion.databases.retrieve({ database_id: this.databaseId })
-    if (!isFullDatabase(database)) {
+    const database = await this.notion.databases.retrieve({
+      database_id: this.databaseId,
+    })
+    if (!notionClient.isFullDatabase(database)) {
       throw new Error(`Failed to retrieve full database schema for database: ${this.databaseId}`)
     }
 
@@ -78,7 +102,7 @@ export class NotionRepository {
     const articles: Article[] = []
     const dataSourceId = await this.getPrimaryDataSourceId()
 
-    for await (const page of iteratePaginatedAPI(this.notion.dataSources.query, {
+    for await (const page of notionClient.iteratePaginatedAPI(this.notion.dataSources.query, {
       data_source_id: dataSourceId,
       filter: {
         property: 'Posted',
@@ -96,16 +120,16 @@ export class NotionRepository {
         continue
       }
 
-      const { properties } = page as any
+      const { properties } = page as { properties: NotionPageProperties }
       const titleProperty = properties.Title
       const urlProperty = properties.URL
       const pageId = page.id
 
       let title = ''
       if (titleProperty?.type === 'title') {
-        title = titleProperty.title.map((t: any) => t.plain_text).join('')
+        title = titleProperty.title.map((t) => t.plain_text).join('')
       } else if (titleProperty?.type === 'rich_text') {
-        title = titleProperty.rich_text.map((t: any) => t.plain_text).join('')
+        title = titleProperty.rich_text.map((t) => t.plain_text).join('')
       }
       const url = urlProperty?.type === 'url' ? urlProperty.url : null
 
