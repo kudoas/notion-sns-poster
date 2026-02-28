@@ -13,7 +13,7 @@
   "dependencies": {
     "@atproto/api": "0.19.0",
     "@google/generative-ai": "^0.24.1",
-    "@notionhq/client": "5.9.0",
+    "@notionhq/client": "5.11.0",
     "crypto-js": "4.2.0",
     "hono": "4.12.3",
     "oauth-1.0a": "2.2.6"
